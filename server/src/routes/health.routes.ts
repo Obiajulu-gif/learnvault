@@ -1,6 +1,7 @@
 import { Router } from "express"
 
 import { getPgStatStatementsSnapshot, pool } from "../db/index"
+import { stellarContractService } from "../services/stellar-contract.service"
 
 export const healthRouter = Router()
 
@@ -32,11 +33,13 @@ healthRouter.get("/health", async (_req, res) => {
 		// pg Pool ping: keep it lightweight
 		const result: any = await pool.query("SELECT 1 AS one")
 		const hasRow = Array.isArray(result?.rows) && result.rows.length > 0
+		const stellarRpc = stellarContractService.getCircuitBreakerState()
 
 		if (hasRow) {
 			res.status(200).json({
 				status: "ok",
 				db: "connected",
+				stellarRpc,
 				uptime,
 				timestamp,
 			})
@@ -47,14 +50,17 @@ healthRouter.get("/health", async (_req, res) => {
 		res.status(503).json({
 			status: "degraded",
 			db: "disconnected",
+			stellarRpc,
 			uptime,
 			timestamp,
 		})
 	} catch (err) {
+		const stellarRpc = stellarContractService.getCircuitBreakerState()
 		console.error("[health] DB ping failed:", err)
 		res.status(503).json({
 			status: "degraded",
 			db: "disconnected",
+			stellarRpc,
 			uptime,
 			timestamp,
 		})
